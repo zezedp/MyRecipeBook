@@ -1,21 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Dapper;
+﻿using Dapper;
+using FluentMigrator.Runner;
 using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MyRecipeBook.Infrastructure.Migrations
 {
     public static class DatabaseMigration
     {
-        public static void Migrate(string connectionString) {
-            EnsureDatabaseCreated_SQLServer(connectionString);
+        public static void Migrate(string connectionString, IServiceProvider serviceProvider)
+        {
+            EnsureDataBaseCreated_SQLServer(connectionString);
+            MigrationDatabase(serviceProvider);
         }
 
-        private static void EnsureDatabaseCreated_SQLServer(string connectionString)
+        public static void EnsureDataBaseCreated_SQLServer(string connectionString)
         {
             var connectionStringBuilder = new SqlConnectionStringBuilder(connectionString);
 
@@ -29,9 +27,18 @@ namespace MyRecipeBook.Infrastructure.Migrations
             parameters.Add("name", databaseName);
 
             var records = dbConnection.Query("SELECT * FROM sys.databases WHERE name = @name", parameters);
-            if (records.Any() == false) 
-                dbConnection.Execute($"CREATE DATABASE {databaseName}");
 
+            if (records.Any() == false)
+            {
+                dbConnection.Execute($"CREATE DATABASE `{databaseName}`;");
+            }
+        }
+
+        private static void MigrationDatabase(IServiceProvider serviceProvider)
+        {
+            var runner = serviceProvider.GetRequiredService<IMigrationRunner>();
+            runner.ListMigrations();
+            runner.MigrateUp();
         }
     }
 }
